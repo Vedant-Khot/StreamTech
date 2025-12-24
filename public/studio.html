@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="StreamTeach Studio - Stream your screen to YouTube Live">
+    <title>Studio - StreamTeach</title>
+
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+
+    <!-- Styles -->
+    <link rel="stylesheet" href="/css/variables.css">
+    <link rel="stylesheet" href="/css/base.css">
+    <link rel="stylesheet" href="/css/components.css">
+    <link rel="stylesheet" href="/css/studio.css">
+
+    <!-- Auth Script -->
+    <script src="/js/auth.js" defer></script>
+    <!-- Media Script -->
+    <script src="/js/media.js" defer></script>
+    <!-- Compositor Script -->
+    <script src="/js/compositor.js" defer></script>
+    <!-- Recorder Script -->
+    <script src="/js/recorder.js" defer></script>
+    <!-- Audio Mixer Script -->
+    <script src="/js/audio-mixer.js" defer></script>
+    <!-- Audio Visualizer Script -->
+    <script src="/js/audio-visualizer.js" defer></script>
+    <!-- Webcam Controller Script -->
+    <script src="/js/webcam-controller.js" defer></script>
+    <!-- Socket.io Client -->
+    <script src="/socket.io/socket.io.js"></script>
+    <!-- Stream Client Script -->
+    <script src="/js/stream-client.js" defer></script>
+</head>
+
+<body>
+    <!-- Navbar -->
+    <nav class="navbar">
+        <div class="navbar-content">
+            <a href="/" class="navbar-brand">
+                <span class="navbar-brand-icon">📺</span>
+                <span>StreamTeach</span>
+            </a>
+            <div class="navbar-nav">
+                <span class="control-status">
+                    <span class="status-dot" id="statusDot"></span>
+                    <span id="statusText">Ready</span>
+                </span>
+                <img src="" alt="" class="user-avatar" id="userAvatar"
+                    style="display: none; width: 32px; height: 32px; border-radius: 50%; object-fit: cover;">
+                <span id="userName"
+                    style="display: none; font-size: var(--font-size-sm); font-weight: var(--font-weight-medium);"></span>
+                <a href="/login.html" class="btn btn-secondary btn-sm" id="authBtn">Sign In</a>
+            </div>
+        </div>
+    </nav>
+
+    <div class="studio-page">
+        <!-- Sidebar -->
+        <aside class="studio-sidebar">
+            <!-- Sources Section -->
+            <div class="sidebar-section">
+                <h3 class="sidebar-section-title">Sources</h3>
+
+                <div class="source-card" id="screenSourceCard">
+                    <div class="source-icon">🖥️</div>
+                    <div class="source-info">
+                        <div class="source-name">Screen</div>
+                        <div class="source-status">Click to share</div>
+                    </div>
+                </div>
+
+                <div class="source-card" id="webcamSourceCard">
+                    <div class="source-icon">📹</div>
+                    <div class="source-info">
+                        <div class="source-name">Webcam</div>
+                        <div class="source-status">Click to enable</div>
+                    </div>
+                </div>
+
+                <!-- Webcam Position Controls -->
+                <div id="webcamControls" class="webcam-controls" style="display: none;">
+                    <div class="control-label">Position</div>
+                    <div class="position-grid">
+                        <button class="position-btn" data-corner="top-left" title="Top Left">↖</button>
+                        <button class="position-btn" data-corner="top-right" title="Top Right">↗</button>
+                        <button class="position-btn" data-corner="bottom-left" title="Bottom Left">↙</button>
+                        <button class="position-btn active" data-corner="bottom-right" title="Bottom Right">↘</button>
+                    </div>
+                    <div class="control-label" style="margin-top: 8px;">Size</div>
+                    <div class="size-buttons">
+                        <button class="size-btn" data-size="small">S</button>
+                        <button class="size-btn active" data-size="medium">M</button>
+                        <button class="size-btn" data-size="large">L</button>
+                    </div>
+                    <div class="control-hint">💡 Drag webcam on canvas to reposition</div>
+                </div>
+            </div>
+
+            <!-- Audio Section -->
+            <div class="sidebar-section">
+                <h3 class="sidebar-section-title">Audio</h3>
+
+                <div class="source-card" id="micSourceCard">
+                    <div class="source-icon">🎙️</div>
+                    <div class="source-info">
+                        <div class="source-name">Microphone</div>
+                        <div class="source-status">Click to enable</div>
+                    </div>
+                </div>
+
+                <div class="volume-control">
+                    <span>🔊</span>
+                    <input type="range" class="volume-slider" id="volumeSlider" min="0" max="100" value="80">
+                    <span id="volumeValue">80%</span>
+                </div>
+
+                <!-- Audio Visualizer -->
+                <div id="audioVisualizerContainer" class="audio-visualizer-container"></div>
+            </div>
+
+            <!-- Stream Settings -->
+            <div class="sidebar-section">
+                <h3 class="sidebar-section-title">Settings</h3>
+
+                <div class="settings-panel">
+                    <div class="settings-row">
+                        <span class="settings-label">Quality</span>
+                        <select class="select" id="qualitySelect">
+                            <option value="720p">720p HD</option>
+                            <option value="1080p" selected>1080p FHD</option>
+                        </select>
+                    </div>
+                    <div class="settings-row">
+                        <span class="settings-label">Frame Rate</span>
+                        <select class="select" id="fpsSelect">
+                            <option value="24">24 fps</option>
+                            <option value="30" selected>30 fps</option>
+                            <option value="60">60 fps</option>
+                        </select>
+                    </div>
+                </div>
+            </div>
+
+            <!-- YouTube Stream Info -->
+            <div class="sidebar-section">
+                <h3 class="sidebar-section-title">YouTube Stream</h3>
+
+                <div class="input-group">
+                    <label for="streamKey" class="input-label">Stream Key</label>
+                    <input type="password" id="streamKey" class="input" placeholder="Enter your stream key">
+                </div>
+                <button class="btn btn-secondary" id="connectYouTubeBtn"
+                    style="width: 100%; margin-top: var(--space-3);">
+                    Connect YouTube
+                </button>
+            </div>
+        </aside>
+
+        <!-- Main Content -->
+        <main class="studio-main">
+            <!-- Preview Area -->
+            <div class="preview-area">
+                <div class="preview-container" id="previewContainer">
+                    <!-- Placeholder when no sources active -->
+                    <div class="preview-placeholder" id="previewPlaceholder">
+                        <div class="preview-placeholder-icon">🎬</div>
+                        <div class="preview-placeholder-text">No sources active</div>
+                        <div class="preview-placeholder-hint">Click "Screen" or "Webcam" in the sidebar to get started
+                        </div>
+                    </div>
+
+                    <!-- Screen preview video (hidden, source only) -->
+                    <video class="screen-preview hidden" id="screenPreview" autoplay muted playsinline
+                        style="display: none;"></video>
+
+                    <!-- Webcam video (hidden, source only) -->
+                    <video id="webcamPreview" autoplay muted playsinline style="display: none;"></video>
+
+                    <!-- Composite Canvas (main preview) -->
+                    <canvas id="compositeCanvas" class="screen-preview hidden"></canvas>
+
+                    <!-- Webcam is now composited directly on canvas -->
+                </div>
+            </div>
+
+            <!-- Control Bar -->
+            <div class="control-bar">
+                <div class="control-group">
+                    <button class="btn-icon" id="micToggle" title="Toggle Microphone">
+                        🎙️
+                    </button>
+                    <button class="btn-icon" id="cameraToggle" title="Toggle Camera">
+                        📹
+                    </button>
+                    <button class="btn-icon" id="screenToggle" title="Toggle Screen Share">
+                        🖥️
+                    </button>
+                </div>
+
+                <div class="control-group">
+                    <select id="formatSelect" class="select" style="min-width: 80px;" title="Recording format">
+                        <option value="webm">WebM</option>
+                        <option value="mp4" selected>MP4</option>
+                        <option value="mov">MOV</option>
+                    </select>
+                    <button class="btn btn-secondary btn-lg" id="recordToggle" disabled>
+                        <span id="recordBtnIcon">⏺️</span>
+                        <span id="recordBtnText">Record</span>
+                    </button>
+                    <span id="recordTimer" class="record-timer"
+                        style="display: none; margin-left: 8px; color: var(--color-error); font-weight: bold;">00:00</span>
+                    <button class="btn btn-secondary btn-lg" id="youtubeUpload" style="display: none;"
+                        title="Upload to YouTube">
+                        <span>📤</span>
+                        <span>YouTube</span>
+                    </button>
+                    <button class="btn btn-live btn-lg" id="streamToggle" disabled>
+                        <span id="streamBtnIcon">🔴</span>
+                        <span id="streamBtnText">Go Live</span>
+                    </button>
+                </div>
+
+                <div class="control-group">
+                    <button class="btn-icon" id="settingsToggle" title="Settings">
+                        ⚙️
+                    </button>
+                    <button class="btn-icon" id="fullscreenToggle" title="Fullscreen">
+                        ⛶
+                    </button>
+                </div>
+            </div>
+        </main>
+    </div>
+
+    <!-- YouTube Upload Modal -->
+    <div id="youtubeModal" class="modal" style="display: none;">
+        <div class="modal-overlay" id="youtubeModalOverlay"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>📤 Upload to YouTube</h3>
+                <button class="modal-close" id="youtubeModalClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="ytTitle">Title *</label>
+                    <input type="text" id="ytTitle" class="form-input" placeholder="Enter video title" required>
+                </div>
+                <div class="form-group">
+                    <label for="ytDescription">Description</label>
+                    <textarea id="ytDescription" class="form-input" rows="4"
+                        placeholder="Enter video description"></textarea>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="ytPrivacy">Privacy</label>
+                        <select id="ytPrivacy" class="form-input">
+                            <option value="private">Private</option>
+                            <option value="unlisted">Unlisted</option>
+                            <option value="public">Public</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="ytTags">Tags (comma separated)</label>
+                        <input type="text" id="ytTags" class="form-input" placeholder="tag1, tag2, tag3">
+                    </div>
+                </div>
+                <div id="ytStatus" class="upload-status" style="display: none;"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="ytCancel">Cancel</button>
+                <button class="btn btn-primary" id="ytUploadBtn">
+                    <span id="ytUploadIcon">📤</span>
+                    <span id="ytUploadText">Upload</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Stream Settings Modal -->
+    <div id="streamModal" class="modal" style="display: none;">
+        <div class="modal-overlay" id="streamModalOverlay"></div>
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>🔴 Go Live Settings</h3>
+                <button class="modal-close" id="streamModalClose">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label for="rtmpUrl">RTMP URL *</label>
+                    <input type="text" id="rtmpUrl" class="form-input" placeholder="rtmp://a.rtmp.youtube.com/live2"
+                        value="rtmp://a.rtmp.youtube.com/live2">
+                </div>
+                <div class="form-group">
+                    <label for="streamKey">Stream Key *</label>
+                    <input type="password" id="streamKey" class="form-input"
+                        placeholder="Enter your YouTube stream key">
+                    <small style="color: var(--color-text-muted); display: block; margin-top: 4px;">
+                        Get from: YouTube Studio → Go Live → Stream key
+                    </small>
+                </div>
+                <div class="form-row">
+                    <div class="form-group">
+                        <label for="streamBitrate">Bitrate (kbps)</label>
+                        <select id="streamBitrate" class="form-input">
+                            <option value="2500">2500 (720p)</option>
+                            <option value="4500" selected>4500 (1080p)</option>
+                            <option value="6000">6000 (1080p+)</option>
+                            <option value="8000">8000 (High)</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="streamFps">Frame Rate</label>
+                        <select id="streamFps" class="form-input">
+                            <option value="24">24 fps</option>
+                            <option value="30" selected>30 fps</option>
+                            <option value="60">60 fps</option>
+                        </select>
+                    </div>
+                </div>
+                <div id="streamStatus" class="upload-status" style="display: none;"></div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" id="streamCancel">Cancel</button>
+                <button class="btn btn-live" id="streamStartBtn">
+                    <span id="streamStartIcon">🔴</span>
+                    <span id="streamStartText">Start Stream</span>
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Initialize managers when DOM is ready
+        document.addEventListener('DOMContentLoaded', () => {
+            // Initialize media manager
+            mediaManager.init();
+
+            // Initialize compositor with canvas
+            const compositeCanvas = document.getElementById('compositeCanvas');
+            const previewPlaceholder = document.getElementById('previewPlaceholder');
+            videoCompositor.init(compositeCanvas);
+
+            // Initialize audio visualizer
+            audioVisualizer.init('audioVisualizerContainer');
+
+            // UI Elements
+            const screenSourceCard = document.getElementById('screenSourceCard');
+            const webcamSourceCard = document.getElementById('webcamSourceCard');
+            const micSourceCard = document.getElementById('micSourceCard');
+            const volumeSlider = document.getElementById('volumeSlider');
+            const volumeValue = document.getElementById('volumeValue');
+            const streamToggle = document.getElementById('streamToggle');
+            const streamBtnIcon = document.getElementById('streamBtnIcon');
+            const streamBtnText = document.getElementById('streamBtnText');
+            const statusDot = document.getElementById('statusDot');
+            const statusText = document.getElementById('statusText');
+            const qualitySelect = document.getElementById('qualitySelect');
+            const fpsSelect = document.getElementById('fpsSelect');
+
+            // Update compositor settings from UI
+            function updateCompositorSettings() {
+                const quality = qualitySelect.value;
+                const fps = parseInt(fpsSelect.value);
+                videoCompositor.setQuality(quality);
+                videoCompositor.setFrameRate(fps);
+            }
+
+            // Initialize compositor settings
+            updateCompositorSettings();
+
+            // Quality/FPS change handlers
+            qualitySelect.addEventListener('change', updateCompositorSettings);
+            fpsSelect.addEventListener('change', updateCompositorSettings);
+
+            // Start/stop compositor based on sources
+            function updateCompositor(state) {
+                const screenPreview = document.getElementById('screenPreview');
+                const webcamPreview = document.getElementById('webcamPreview');
+
+                // Set video sources for compositor
+                videoCompositor.setScreenSource(screenPreview);
+                videoCompositor.setWebcamSource(webcamPreview);
+
+                if (state.screenActive || state.webcamActive) {
+                    // Show composite canvas
+                    compositeCanvas.classList.remove('hidden');
+                    previewPlaceholder.classList.add('hidden');
+
+                    // Start compositor if not running
+                    if (!videoCompositor.isRunning) {
+                        videoCompositor.start();
+                    }
+                } else {
+                    // Hide canvas, show placeholder
+                    compositeCanvas.classList.add('hidden');
+                    previewPlaceholder.classList.remove('hidden');
+
+                    // Stop compositor
+                    if (videoCompositor.isRunning) {
+                        videoCompositor.stop();
+                    }
+                }
+            }
+
+            // Update UI based on media state
+            function updateUI(state) {
+                // Update source cards
+                screenSourceCard.classList.toggle('active', state.screenActive);
+                screenSourceCard.querySelector('.source-status').textContent =
+                    state.screenActive ? 'Sharing' : 'Click to share';
+
+                webcamSourceCard.classList.toggle('active', state.webcamActive);
+                webcamSourceCard.querySelector('.source-status').textContent =
+                    state.webcamActive ? 'Enabled' : 'Click to enable';
+
+                // Show/hide webcam position controls
+                const webcamControls = document.getElementById('webcamControls');
+                webcamControls.style.display = state.webcamActive ? 'block' : 'none';
+
+                micSourceCard.classList.toggle('active', state.micActive);
+                micSourceCard.querySelector('.source-status').textContent =
+                    state.micActive ? 'Enabled' : 'Click to enable';
+
+                // Update control bar buttons
+                document.getElementById('screenToggle').classList.toggle('active', state.screenActive);
+                document.getElementById('cameraToggle').classList.toggle('active', state.webcamActive);
+                document.getElementById('micToggle').classList.toggle('active', state.micActive);
+
+                // Update status indicator and record button
+                if (state.hasAnySource) {
+                    statusDot.classList.add('ready');
+                    statusText.textContent = 'Ready to stream';
+                    streamToggle.disabled = false;
+                    document.getElementById('recordToggle').disabled = false;
+                } else {
+                    statusDot.classList.remove('ready');
+                    statusText.textContent = 'Ready';
+                    streamToggle.disabled = true;
+                    document.getElementById('recordToggle').disabled = true;
+                }
+
+                // Update compositor
+                updateCompositor(state);
+
+                // Update audio mixer based on state
+                if (state.micActive && mediaManager.micStream) {
+                    audioMixer.init();
+                    audioMixer.addMicrophoneStream(mediaManager.micStream);
+                    audioVisualizer.connectMicStream(mediaManager.micStream);
+                } else {
+                    audioMixer.removeMicrophoneStream();
+                    audioVisualizer.disconnectMic();
+                }
+
+                // Add system audio from screen share if available
+                if (state.screenActive && mediaManager.screenStream) {
+                    const audioTracks = mediaManager.screenStream.getAudioTracks();
+                    if (audioTracks.length > 0) {
+                        audioMixer.init();
+                        audioMixer.addSystemAudioStream(mediaManager.screenStream);
+                        audioVisualizer.connectSystemStream(mediaManager.screenStream);
+                    }
+                } else {
+                    audioMixer.removeSystemAudioStream();
+                    audioVisualizer.disconnectSystem();
+                }
+            }
+
+            // Set up state change callback
+            mediaManager.onStateChange = updateUI;
+
+            // Screen capture
+            screenSourceCard.addEventListener('click', async () => {
+                await mediaManager.toggleScreenCapture();
+            });
+            document.getElementById('screenToggle').addEventListener('click', async () => {
+                await mediaManager.toggleScreenCapture();
+            });
+
+            // Webcam
+            webcamSourceCard.addEventListener('click', async () => {
+                await mediaManager.toggleWebcam();
+            });
+            document.getElementById('cameraToggle').addEventListener('click', async () => {
+                await mediaManager.toggleWebcam();
+            });
+
+            // Microphone
+            micSourceCard.addEventListener('click', async () => {
+                await mediaManager.toggleMicrophone();
+            });
+            document.getElementById('micToggle').addEventListener('click', async () => {
+                await mediaManager.toggleMicrophone();
+            });
+
+            // Volume slider - controls microphone volume
+            volumeSlider.addEventListener('input', () => {
+                const volume = volumeSlider.value / 100;
+                volumeValue.textContent = volumeSlider.value + '%';
+                audioMixer.setMicVolume(volume);
+            });
+
+            // Fullscreen toggle
+            document.getElementById('fullscreenToggle').addEventListener('click', () => {
+                const container = document.getElementById('previewContainer');
+                if (!document.fullscreenElement) {
+                    container.requestFullscreen();
+                } else {
+                    document.exitFullscreen();
+                }
+            });
+
+            // Connect YouTube button
+            document.getElementById('connectYouTubeBtn').addEventListener('click', () => {
+                alert('YouTube integration will be implemented in Step 6');
+            });
+
+            // Stream toggle (placeholder)
+            streamToggle.addEventListener('click', function () {
+                alert('Streaming functionality will be implemented in Step 7');
+            });
+
+            // Recording functionality
+            const recordToggle = document.getElementById('recordToggle');
+            const recordBtnIcon = document.getElementById('recordBtnIcon');
+            const recordBtnText = document.getElementById('recordBtnText');
+            const recordTimer = document.getElementById('recordTimer');
+            let recordingInterval = null;
+
+            recordToggle.addEventListener('click', async () => {
+                if (!videoRecorder.isRecording) {
+                    // Start recording
+                    const outputStream = videoCompositor.getOutputStream();
+                    if (!outputStream) {
+                        alert('No video source available. Please start screen or webcam first.');
+                        return;
+                    }
+
+                    // Resume audio context (required after user interaction)
+                    await audioMixer.resume();
+
+                    // Get mixed audio stream (mic + system audio)
+                    const audioStream = audioMixer.getMixedStream();
+
+                    const success = videoRecorder.start(outputStream, audioStream);
+                    if (success) {
+                        recordToggle.classList.add('recording');
+                        recordBtnIcon.textContent = '⏹️';
+                        recordBtnText.textContent = 'Stop';
+                        recordTimer.style.display = 'inline';
+                        recordTimer.textContent = '00:00';
+
+                        // Update timer every second
+                        recordingInterval = setInterval(() => {
+                            recordTimer.textContent = videoRecorder.getFormattedDuration();
+                        }, 1000);
+                    }
+                } else {
+                    // Stop recording
+                    videoRecorder.stop();
+
+                    recordToggle.classList.remove('recording');
+                    recordBtnIcon.textContent = '⏺️';
+                    recordBtnText.textContent = 'Record';
+                    recordTimer.style.display = 'none';
+
+                    if (recordingInterval) {
+                        clearInterval(recordingInterval);
+                        recordingInterval = null;
+                    }
+                }
+            });
+
+            // Auto-download when recording stops
+            videoRecorder.onRecordingStop = async () => {
+                const format = document.getElementById('formatSelect').value;
+
+                // Show converting indicator for non-webm formats
+                if (format !== 'webm') {
+                    recordBtnText.textContent = 'Converting...';
+                    recordToggle.disabled = true;
+                }
+
+                setTimeout(async () => {
+                    if (format === 'webm') {
+                        videoRecorder.download();
+                    } else {
+                        await videoRecorder.downloadAsFormat(format);
+                    }
+
+                    recordBtnText.textContent = 'Record';
+                    recordToggle.disabled = !mediaManager.getState().hasAnySource;
+                }, 500);
+            };
+
+            // Initialize webcam controller
+            webcamController.init(compositeCanvas);
+
+            // Webcam position buttons
+            document.querySelectorAll('.position-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const corner = btn.dataset.corner;
+                    webcamController.setCorner(corner);
+
+                    // Update active state
+                    document.querySelectorAll('.position-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                });
+            });
+
+            // Webcam size buttons
+            document.querySelectorAll('.size-btn').forEach(btn => {
+                btn.addEventListener('click', () => {
+                    const size = btn.dataset.size;
+                    webcamController.setSize(size);
+
+                    // Update active state
+                    document.querySelectorAll('.size-btn').forEach(b => b.classList.remove('active'));
+                    btn.classList.add('active');
+                });
+            });
+
+            // YouTube Upload functionality
+            const youtubeModal = document.getElementById('youtubeModal');
+            const youtubeUploadBtn = document.getElementById('youtubeUpload');
+            const ytTitle = document.getElementById('ytTitle');
+            const ytDescription = document.getElementById('ytDescription');
+            const ytPrivacy = document.getElementById('ytPrivacy');
+            const ytTags = document.getElementById('ytTags');
+            const ytStatus = document.getElementById('ytStatus');
+            const ytUploadBtn = document.getElementById('ytUploadBtn');
+            const ytUploadText = document.getElementById('ytUploadText');
+
+            // Show YouTube upload button after recording stops
+            videoRecorder.onRecordingStop = async () => {
+                const format = document.getElementById('formatSelect').value;
+
+                // Show converting indicator for non-webm formats
+                if (format !== 'webm') {
+                    recordBtnText.textContent = 'Converting...';
+                    recordToggle.disabled = true;
+                }
+
+                setTimeout(async () => {
+                    if (format === 'webm') {
+                        videoRecorder.download();
+                    } else {
+                        await videoRecorder.downloadAsFormat(format);
+                    }
+
+                    recordBtnText.textContent = 'Record';
+                    recordToggle.disabled = !mediaManager.getState().hasAnySource;
+
+                    // Show YouTube upload button
+                    youtubeUploadBtn.style.display = 'flex';
+                }, 500);
+            };
+
+            // Open YouTube modal
+            youtubeUploadBtn.addEventListener('click', () => {
+                youtubeModal.style.display = 'flex';
+                ytTitle.focus();
+                ytStatus.style.display = 'none';
+                ytStatus.className = 'upload-status';
+            });
+
+            // Close modal handlers
+            const closeModal = () => {
+                youtubeModal.style.display = 'none';
+            };
+
+            document.getElementById('youtubeModalClose').addEventListener('click', closeModal);
+            document.getElementById('youtubeModalOverlay').addEventListener('click', closeModal);
+            document.getElementById('ytCancel').addEventListener('click', closeModal);
+
+            // Upload to YouTube
+            ytUploadBtn.addEventListener('click', async () => {
+                const title = ytTitle.value.trim();
+                if (!title) {
+                    ytTitle.focus();
+                    return;
+                }
+
+                // Show uploading state
+                ytUploadBtn.disabled = true;
+                ytUploadText.textContent = 'Uploading...';
+                ytStatus.style.display = 'block';
+                ytStatus.className = 'upload-status uploading';
+                ytStatus.textContent = '📤 Uploading to YouTube... This may take a few minutes.';
+
+                const result = await videoRecorder.uploadToYouTube(
+                    title,
+                    ytDescription.value.trim(),
+                    ytPrivacy.value,
+                    ytTags.value
+                );
+
+                ytUploadBtn.disabled = false;
+                ytUploadText.textContent = 'Upload';
+
+                if (result.success) {
+                    ytStatus.className = 'upload-status success';
+                    ytStatus.innerHTML = `✅ Upload complete! <a href="${result.videoUrl}" target="_blank">View on YouTube →</a>`;
+                    youtubeUploadBtn.style.display = 'none';
+                } else {
+                    ytStatus.className = 'upload-status error';
+                    ytStatus.textContent = `❌ ${result.error}`;
+                }
+            });
+
+            // ========== STREAMING FUNCTIONALITY ==========
+            const streamModal = document.getElementById('streamModal');
+            // streamToggle, streamBtnIcon, streamBtnText already declared above
+            const streamStartBtn = document.getElementById('streamStartBtn');
+            const streamStartText = document.getElementById('streamStartText');
+            const streamStatusDiv = document.getElementById('streamStatus');
+            let streamTimerInterval = null;
+
+            // Initialize stream client
+            streamClient.init();
+
+            // Stream client callbacks
+            streamClient.onStatusChange = (status, message) => {
+                console.log('Stream status:', status, message);
+
+                if (status === 'live') {
+                    streamToggle.classList.add('live');
+                    streamBtnIcon.textContent = '⏹️';
+                    streamBtnText.textContent = 'End Stream';
+                    statusDot.classList.add('live');
+                    statusText.textContent = 'LIVE';
+                    streamModal.style.display = 'none';
+
+                    // Start timer
+                    streamTimerInterval = setInterval(() => {
+                        streamBtnText.textContent = `Live ${streamClient.getFormattedDuration()}`;
+                    }, 1000);
+                } else if (status === 'connecting') {
+                    streamStatusDiv.style.display = 'block';
+                    streamStatusDiv.className = 'upload-status uploading';
+                    streamStatusDiv.textContent = '🔄 ' + message;
+                } else {
+                    streamToggle.classList.remove('live');
+                    streamBtnIcon.textContent = '🔴';
+                    streamBtnText.textContent = 'Go Live';
+                    statusDot.classList.remove('live');
+                    statusDot.classList.add('ready');
+                    statusText.textContent = 'Ready';
+
+                    if (streamTimerInterval) {
+                        clearInterval(streamTimerInterval);
+                        streamTimerInterval = null;
+                    }
+                }
+            };
+
+            streamClient.onError = (error) => {
+                streamStatusDiv.style.display = 'block';
+                streamStatusDiv.className = 'upload-status error';
+                streamStatusDiv.textContent = '❌ ' + error;
+                streamStartBtn.disabled = false;
+                streamStartText.textContent = 'Start Stream';
+            };
+
+            // Open stream modal
+            streamToggle.addEventListener('click', () => {
+                if (streamClient.isStreaming) {
+                    // Stop streaming
+                    streamClient.stop();
+                } else {
+                    // Show modal
+                    streamModal.style.display = 'flex';
+                    streamStatusDiv.style.display = 'none';
+                }
+            });
+
+            // Close stream modal
+            const closeStreamModal = () => {
+                streamModal.style.display = 'none';
+            };
+            document.getElementById('streamModalClose').addEventListener('click', closeStreamModal);
+            document.getElementById('streamModalOverlay').addEventListener('click', closeStreamModal);
+            document.getElementById('streamCancel').addEventListener('click', closeStreamModal);
+
+            // Start streaming
+            streamStartBtn.addEventListener('click', async () => {
+                const rtmpUrl = document.getElementById('rtmpUrl').value.trim();
+                const streamKey = document.getElementById('streamKey').value.trim();
+                const bitrate = parseInt(document.getElementById('streamBitrate').value);
+                const fps = parseInt(document.getElementById('streamFps').value);
+
+                if (!streamKey) {
+                    document.getElementById('streamKey').focus();
+                    return;
+                }
+
+                streamStartBtn.disabled = true;
+                streamStartText.textContent = 'Starting...';
+
+                // Resume audio context
+                await audioMixer.resume();
+
+                // Get video and audio streams
+                const videoStream = videoCompositor.getOutputStream();
+                const audioStream = audioMixer.getMixedStream();
+
+                const success = await streamClient.start(videoStream, audioStream, {
+                    rtmpUrl,
+                    streamKey,
+                    width: videoCompositor.width,
+                    height: videoCompositor.height,
+                    fps,
+                    bitrate
+                });
+
+                if (!success) {
+                    streamStartBtn.disabled = false;
+                    streamStartText.textContent = 'Start Stream';
+                }
+            });
+
+            // Enable stream button when sources are ready
+            const originalUpdateUI = mediaManager.onStateChange;
+            mediaManager.onStateChange = (state) => {
+                // Call original handler
+                if (originalUpdateUI) originalUpdateUI(state);
+
+                // Enable/disable stream button
+                streamToggle.disabled = !state.hasAnySource;
+            };
+
+            console.log('🎬 StreamTeach Studio loaded with MediaManager + Compositor + Recorder + WebcamController + YouTube + Streaming');
+        });
+    </script>
+</body>
+
+</html>
