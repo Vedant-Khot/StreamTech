@@ -146,20 +146,6 @@
                     </div>
                 </div>
             </div>
-
-            <!-- YouTube Stream Info -->
-            <div class="sidebar-section">
-                <h3 class="sidebar-section-title">YouTube Stream</h3>
-
-                <div class="input-group">
-                    <label for="streamKey" class="input-label">Stream Key</label>
-                    <input type="password" id="streamKey" class="input" placeholder="Enter your stream key">
-                </div>
-                <button class="btn btn-secondary" id="connectYouTubeBtn"
-                    style="width: 100%; margin-top: var(--space-3);">
-                    Connect YouTube
-                </button>
-            </div>
         </aside>
 
         <!-- Main Content -->
@@ -516,15 +502,7 @@
                 }
             });
 
-            // Connect YouTube button
-            document.getElementById('connectYouTubeBtn').addEventListener('click', () => {
-                alert('YouTube integration will be implemented in Step 6');
-            });
 
-            // Stream toggle (placeholder)
-            streamToggle.addEventListener('click', function () {
-                alert('Streaming functionality will be implemented in Step 7');
-            });
 
             // Recording functionality
             const recordToggle = document.getElementById('recordToggle');

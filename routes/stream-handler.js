@@ -60,37 +60,10 @@ class StreamHandler {
         console.log(`   RTMP URL: ${rtmpUrl.substring(0, 50)}...`);
 
         try {
-            // FFmpeg command for RTMP streaming
-            const ffmpegArgs = [
-                // Input from stdin (WebM from browser)
-                '-i', 'pipe:0',
-
-                // Video encoding
-                '-c:v', 'libx264',
-                '-preset', 'veryfast',
-                '-tune', 'zerolatency',
-                '-b:v', `${bitrate}k`,
-                '-maxrate', `${bitrate}k`,
-                '-bufsize', `${bitrate * 2}k`,
-                '-pix_fmt', 'yuv420p',
-                '-g', String(fps * 2), // Keyframe every 2 seconds
-                '-r', String(fps),
-
-                // Video scaling (ensure even dimensions)
-                '-vf', `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2`,
-
-                // Audio encoding
-                '-c:a', 'aac',
-                '-b:a', '128k',
-                '-ar', '44100',
-                '-ac', '2',
-
-                // Output format
-                '-f', 'flv',
-
-                // RTMP output
-                fullRtmpUrl
-            ];
+            // Build optimized FFmpeg arguments
+            const ffmpegArgs = this._buildFFmpegArgs(fullRtmpUrl, {
+                width, height, fps, bitrate
+            });
 
             const ffmpeg = spawn('ffmpeg', ffmpegArgs);
 
@@ -100,6 +73,15 @@ class StreamHandler {
                 startTime: Date.now(),
                 bytesReceived: 0,
                 config
+            });
+
+            // Handle stdin errors (EPIPE when FFmpeg dies)
+            ffmpeg.stdin.on('error', (err) => {
+                if (err.code === 'EPIPE') {
+                    console.log('⚠️ FFmpeg stdin pipe closed (stream may have ended)');
+                } else {
+                    console.error('❌ FFmpeg stdin error:', err.message);
+                }
             });
 
             // Handle FFmpeg stdout
@@ -153,12 +135,21 @@ class StreamHandler {
         }
 
         try {
-            // Write data to FFmpeg stdin
-            const buffer = Buffer.from(data);
-            streamInfo.ffmpeg.stdin.write(buffer);
-            streamInfo.bytesReceived += buffer.length;
+            // Check if stdin is writable
+            if (streamInfo.ffmpeg.stdin && !streamInfo.ffmpeg.stdin.destroyed) {
+                const buffer = Buffer.from(data);
+                streamInfo.ffmpeg.stdin.write(buffer, (err) => {
+                    if (err) {
+                        console.error('Write error:', err.message);
+                        // Don't stop, FFmpeg might recover
+                    }
+                });
+                streamInfo.bytesReceived += buffer.length;
+            }
         } catch (error) {
             console.error('Error writing to FFmpeg:', error.message);
+            // Stop the stream if we can't write
+            this._stopStream(socket);
         }
     }
 
@@ -213,6 +204,82 @@ class StreamHandler {
             config: streamInfo.config
         };
     }
-}
 
+    /**
+     * Build optimized FFmpeg arguments
+     * Tries hardware acceleration first, falls back to optimized software encoding
+     */
+    _buildFFmpegArgs(rtmpUrl, { width, height, fps, bitrate }) {
+        const args = [
+            // Reduce input buffer for lower latency
+            '-fflags', 'nobuffer',
+            '-flags', 'low_delay',
+
+            // Input from stdin (WebM from browser)
+            '-i', 'pipe:0',
+
+            // Limit threads to reduce CPU usage
+            '-threads', '4',
+        ];
+
+        // Try NVIDIA NVENC hardware encoding first
+        // Falls back to optimized software encoding
+        const useHardware = process.env.USE_HARDWARE_ENCODING === 'true';
+
+        if (useHardware) {
+            // NVIDIA NVENC (if available)
+            args.push(
+                '-c:v', 'h264_nvenc',
+                '-preset', 'p4',  // Balanced preset for NVENC
+                '-tune', 'll',   // Low latency tuning
+                '-b:v', `${bitrate}k`,
+                '-maxrate', `${bitrate}k`,
+                '-bufsize', `${Math.floor(bitrate / 2)}k`,  // Smaller buffer for low latency
+                '-rc', 'cbr',    // Constant bitrate for streaming
+                '-gpu', '0'      // Use first GPU
+            );
+            console.log('   Using: NVIDIA NVENC (hardware)');
+        } else {
+            // Optimized software encoding (lower CPU usage)
+            args.push(
+                '-c:v', 'libx264',
+                '-preset', 'ultrafast',  // Fastest preset for lowest CPU
+                '-tune', 'zerolatency',  // Optimized for streaming
+                '-profile:v', 'baseline', // Simpler profile = less CPU
+                '-level', '3.1',
+                '-b:v', `${bitrate}k`,
+                '-maxrate', `${bitrate}k`,
+                '-bufsize', `${Math.floor(bitrate / 2)}k`,  // Smaller buffer
+                '-threads', '4',  // Limit encoder threads
+                '-x264-params', 'nal-hrd=cbr:force-cfr=1'  // Constant bitrate
+            );
+            console.log('   Using: libx264 ultrafast (software, optimized)');
+        }
+
+        // Common settings
+        args.push(
+            '-pix_fmt', 'yuv420p',
+            '-g', String(fps * 2),  // Keyframe every 2 seconds
+            '-r', String(fps),
+            '-vsync', 'cfr',  // Constant frame rate
+
+            // Skip scaling if dimensions match (reduces CPU)
+            '-vf', `scale=${width}:${height}:force_original_aspect_ratio=decrease,pad=${width}:${height}:(ow-iw)/2:(oh-ih)/2,format=yuv420p`,
+
+            // Audio encoding (optimized)
+            '-c:a', 'aac',
+            '-b:a', '128k',
+            '-ar', '44100',
+            '-ac', '2',
+
+            // Output format
+            '-f', 'flv',
+
+            // RTMP output
+            rtmpUrl
+        );
+
+        return args;
+    }
+}
 module.exports = StreamHandler;
