@@ -36,6 +36,8 @@
     <script src="/socket.io/socket.io.js"></script>
     <!-- Stream Client Script -->
     <script src="/js/stream-client.js" defer></script>
+    <!-- Toast Notifications -->
+    <script src="/js/toast.js" defer></script>
 </head>
 
 <body>
@@ -290,22 +292,28 @@
                         Get from: YouTube Studio → Go Live → Stream key
                     </small>
                 </div>
-                <div class="form-row">
+                <div class="form-row" style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px;">
                     <div class="form-group">
-                        <label for="streamBitrate">Bitrate (kbps)</label>
-                        <select id="streamBitrate" class="form-input">
-                            <option value="2500">2500 (720p)</option>
-                            <option value="4500" selected>4500 (1080p)</option>
-                            <option value="6000">6000 (1080p+)</option>
-                            <option value="8000">8000 (High)</option>
+                        <label for="streamResolution">Resolution</label>
+                        <select id="streamResolution" class="form-input">
+                            <option value="720">720p (Less CPU)</option>
+                            <option value="1080" selected>1080p</option>
                         </select>
                     </div>
                     <div class="form-group">
-                        <label for="streamFps">Frame Rate</label>
+                        <label for="streamBitrate">Bitrate</label>
+                        <select id="streamBitrate" class="form-input">
+                            <option value="2500">2500k</option>
+                            <option value="4500" selected>4500k</option>
+                            <option value="6000">6000k</option>
+                        </select>
+                    </div>
+                    <div class="form-group">
+                        <label for="streamFps">FPS</label>
                         <select id="streamFps" class="form-input">
-                            <option value="24">24 fps</option>
-                            <option value="30" selected>30 fps</option>
-                            <option value="60">60 fps</option>
+                            <option value="24">24</option>
+                            <option value="30" selected>30</option>
+                            <option value="60">60</option>
                         </select>
                     </div>
                 </div>
@@ -719,6 +727,9 @@
                     streamTimerInterval = setInterval(() => {
                         streamBtnText.textContent = `Live ${streamClient.getFormattedDuration()}`;
                     }, 1000);
+
+                    // Show success toast
+                    toast.success('You are now LIVE! 🔴');
                 } else if (status === 'connecting') {
                     streamStatusDiv.style.display = 'block';
                     streamStatusDiv.className = 'upload-status uploading';
@@ -735,6 +746,9 @@
                         clearInterval(streamTimerInterval);
                         streamTimerInterval = null;
                     }
+
+                    // Show offline toast
+                    toast.info('Stream ended');
                 }
             };
 
@@ -744,6 +758,9 @@
                 streamStatusDiv.textContent = '❌ ' + error;
                 streamStartBtn.disabled = false;
                 streamStartText.textContent = 'Start Stream';
+
+                // Show error toast
+                toast.error('Stream error: ' + error);
             };
 
             // Open stream modal
@@ -755,6 +772,16 @@
                     // Show modal
                     streamModal.style.display = 'flex';
                     streamStatusDiv.style.display = 'none';
+                }
+            });
+
+            // Auto-select bitrate based on resolution
+            document.getElementById('streamResolution').addEventListener('change', function () {
+                const bitrate = document.getElementById('streamBitrate');
+                if (this.value === '720') {
+                    bitrate.value = '2500';
+                } else {
+                    bitrate.value = '4500';
                 }
             });
 
@@ -770,8 +797,13 @@
             streamStartBtn.addEventListener('click', async () => {
                 const rtmpUrl = document.getElementById('rtmpUrl').value.trim();
                 const streamKey = document.getElementById('streamKey').value.trim();
+                const resolution = parseInt(document.getElementById('streamResolution').value);
                 const bitrate = parseInt(document.getElementById('streamBitrate').value);
                 const fps = parseInt(document.getElementById('streamFps').value);
+
+                // Calculate dimensions based on resolution
+                const width = resolution === 720 ? 1280 : 1920;
+                const height = resolution;
 
                 if (!streamKey) {
                     document.getElementById('streamKey').focus();
@@ -791,8 +823,8 @@
                 const success = await streamClient.start(videoStream, audioStream, {
                     rtmpUrl,
                     streamKey,
-                    width: videoCompositor.width,
-                    height: videoCompositor.height,
+                    width,
+                    height,
                     fps,
                     bitrate
                 });
