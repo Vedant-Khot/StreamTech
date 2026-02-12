@@ -29,7 +29,7 @@ app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
 // Session configuration
-app.use(session({
+const sessionMiddleware = session({
     secret: process.env.SESSION_SECRET || 'dev-secret-change-in-production',
     resave: false,
     saveUninitialized: false,
@@ -38,7 +38,8 @@ app.use(session({
         httpOnly: true,
         maxAge: 24 * 60 * 60 * 1000 // 24 hours
     }
-}));
+});
+app.use(sessionMiddleware);
 
 // Initialize Passport
 app.use(passport.initialize());
@@ -90,8 +91,8 @@ app.get('/', (req, res) => {
     res.sendFile(path.join(__dirname, 'public', 'index.html'));
 });
 
-// Initialize Stream Handler with Socket.io
-const streamHandler = new StreamHandler(io);
+// Initialize Stream Handler with Socket.io (and inject session/passport)
+const streamHandler = new StreamHandler(io, sessionMiddleware, passport);
 streamHandler.init();
 
 // Start server with Socket.io

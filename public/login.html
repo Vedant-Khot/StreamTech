@@ -29,8 +29,10 @@
             </div>
 
             <!-- Google Sign In Button -->
-            <button type="button" class="btn-google" id="googleSignInBtn">
-                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+            <button type="button" class="btn-google" id="googleSignInBtn"
+                style="width: 100%; justify-content: center; padding: 12px; margin-top: 20px;">
+                <svg viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg"
+                    style="width: 20px; height: 20px; margin-right: 10px;">
                     <path fill="#4285F4"
                         d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z" />
                     <path fill="#34A853"
@@ -43,37 +45,9 @@
                 <span>Continue with Google</span>
             </button>
 
-            <div class="login-divider">
-                <span class="login-divider-text">or</span>
-            </div>
-
-            <!-- Email Login Form (UI placeholder for future) -->
-            <form class="login-form" id="loginForm">
-                <div class="input-group">
-                    <label for="email" class="input-label">Email</label>
-                    <input type="email" id="email" class="input" placeholder="you@example.com" disabled>
-                </div>
-                <div class="input-group">
-                    <label for="password" class="input-label">Password</label>
-                    <input type="password" id="password" class="input" placeholder="••••••••" disabled>
-                </div>
-                <div class="checkbox-group">
-                    <input type="checkbox" id="remember" class="checkbox" disabled>
-                    <label for="remember" class="checkbox-label">Remember me</label>
-                </div>
-                <button type="submit" class="btn btn-primary" disabled>
-                    Sign In
-                </button>
-            </form>
-
-            <p
-                style="font-size: var(--font-size-xs); color: var(--color-text-muted); text-align: center; margin-top: var(--space-4);">
-                Email login coming soon. Please use Google Sign In.
-            </p>
-
-            <div class="login-footer">
+            <div class="login-footer" style="margin-top: 2rem;">
                 <p class="login-footer-text">
-                    Don't have an account? <a href="#">Sign up with Google</a>
+                    By signing in, you agree to our <a href="#">Terms of Service</a>
                 </p>
             </div>
         </div>

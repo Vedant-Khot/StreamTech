@@ -117,7 +117,7 @@ class StreamClient {
         try {
             this.mediaRecorder = new MediaRecorder(combinedStream, {
                 mimeType: mimeType,
-                videoBitsPerSecond: (config.bitrate || 4500) * 1000
+                videoBitsPerSecond: (config.bitrate || 3000) * 1000
             });
 
             // Send video chunks to server
@@ -143,7 +143,7 @@ class StreamClient {
                 width: width || 1920,
                 height: height || 1080,
                 fps: fps || 30,
-                bitrate: bitrate || 4500
+                bitrate: bitrate || 3000
             });
 
             // Start recording with small timeslice for low latency
