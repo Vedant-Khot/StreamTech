@@ -1,0 +1,11 @@
+services:
+  - type: web
+    name: streamtech-server
+    env: docker
+    region: ohio
+    plan: free
+    branch: main
+    envVars:
+      - key: PORT
+        value: 10000
+    autoDeploy: false
